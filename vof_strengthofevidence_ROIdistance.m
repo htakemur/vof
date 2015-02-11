@@ -104,171 +104,85 @@ for kk = 1:numtargetROIs(2)
             end
         end
         
-        %% Extracting fiber endpoints
-        voffiberlength(connum) = length(fgsegment3.fibers);
-        
-        % Extract ACPC coordinate of dorsal and ventral VOF endpoint
-        for kk = 1:voffiberlength(connum)
-            fibercoordinate = cell2mat(fgsegment3.fibers(kk));
-            fiberlength = size(fibercoordinate);
-            if  fibercoordinate(3,1) > fibercoordinate(3,fiberlength(2))
-                dorsalfiberend(kk,1,connum) = fibercoordinate(1,1);
-                dorsalfiberend(kk,2,connum) = fibercoordinate(2,1);
-                dorsalfiberend(kk,3,connum) = fibercoordinate(3,1);
-                ventralfiberend(kk,1,connum) = fibercoordinate(1,fiberlength(2));
-                ventralfiberend(kk,2,connum) = fibercoordinate(2,fiberlength(2));
-                ventralfiberend(kk,3,connum) = fibercoordinate(3,fiberlength(2));
-                
-            else
-                ventralfiberend(kk,1,connum) = fibercoordinate(1,1);
-                ventralfiberend(kk,2,connum) = fibercoordinate(2,1);
-                ventralfiberend(kk,3,connum) = fibercoordinate(3,1);
-                dorsalfiberend(kk,1,connum) = fibercoordinate(1,fiberlength(2));
-                dorsalfiberend(kk,2,connum) = fibercoordinate(2,fiberlength(2));
-                dorsalfiberend(kk,3,connum) = fibercoordinate(3,fiberlength(2));
-                
-            end
-            clear fibercoordinate fiberlength
-        end
-        
-        
-        %% Selecting fibers within a certain distance from gray matter ROI
-        
-        % Load target gray matter ROI
-        load(targetROIfile);
-        roicoords = transpose(roi.coords);
-        dorsalendcoords = transpose(dorsalfiberend(:,:,connum));
-        ventralendcoords = transpose(ventralfiberend(:,:,connum));
-        roicoordsize = size(roicoords);
-        
-        % Computing the squared distance between each gray matter voxel in
-        % ROI and VOF fiber endpoint
-        for kp = 1:voffiberlength(connum)
-            [indices_d(kp), bestSqDis_d(kp)] = nearpoints(dorsalendcoords(:,kp), roicoords);
-            [indices_v(kp), bestSqDis_v(kp)] = nearpoints(ventralendcoords(:,kp),roicoords);
-        end
-        
-        
-        % Select fibers within the threshold, then create keepFascicles
-        % structure
-        dorsalfiber = find(bestSqDis_d <threshold);
-        ventralfiber = find(bestSqDis_v <threshold);
-        fascicleidxtotal = find(keepFascicles4);
-        dorsalsize = size(dorsalfiber);
-        ventralsize = size(ventralfiber);
-        
-        %% Run the dorsal test if the number of dorsal VOF projection fibers were non-zero
-        if dorsalsize(2)>0
-            keepFascicles5d = zeros(size(keepFascicles4));
-            for ik = 1:length(dorsalfiber)
-                keepFascicles5d(fascicleidxtotal(dorsalfiber(ik))) = 1;               
-            end
-            % Hypothesis Testing
-            fprintf('Testing the dorsal VOF projection, connectome number %i...\n',connum)
-            [feWithoutFas, feWithFas, ~] = feTestFascicle(fe,logical(keepFascicles5d),0);
+    %% Select fibers within a certain distance from each ROIs
+    
+    voffiberlength(connum) = length(fgsegment3.fibers);
+    
+    % Extract ACPC coordinate of dorsal and ventral VOF endpoint
+    for kk = 1:voffiberlength(connum)
+        fibercoordinate = cell2mat(fgsegment3.fibers(kk));
+        fiberlength = size(fibercoordinate);
+        if  fibercoordinate(3,1) > fibercoordinate(3,fiberlength(2))
+            dorsalfiberend(kk,1,connum) = fibercoordinate(1,1);
+            dorsalfiberend(kk,2,connum) = fibercoordinate(2,1);
+            dorsalfiberend(kk,3,connum) = fibercoordinate(3,1);
+            ventralfiberend(kk,1,connum) = fibercoordinate(1,fiberlength(2));
+            ventralfiberend(kk,2,connum) = fibercoordinate(2,fiberlength(2));
+            ventralfiberend(kk,3,connum) = fibercoordinate(3,fiberlength(2));
             
-            % Compute the RMSE and Rrmse
-            WITH.r2       = median(feGetRep(feWithFas,   'vox  r2'));
-            WITH.rmse     = median(feGetRep(feWithFas,   'vox  rmse'));
-            WITH.rrmse    = median(feGetRep(feWithFas,   'vox  rmse ratio'));
-            WITH.rmseall  = (feGetRep(feWithFas,   'vox  rmse'));
-            
-            WITHOUT.r2       = median(feGetRep(feWithoutFas,'vox  r2'));
-            WITHOUT.rmse     = median(feGetRep(feWithoutFas,'vox  rmse'));
-            WITHOUT.rrmse    = median(feGetRep(feWithoutFas,'vox  rmse ratio'));
-            WITHOUT.rmseall  = (feGetRep(feWithoutFas,'vox  rmse'));
-            
-            % Empirical difference of RMSE between with and without VOF model
-            EmpiricalDiff_d{connum} = WITHOUT.rmse - WITH.rmse;
-            
-            sizeWith    = length(WITH.rmseall);
-            sizeWithout = length(WITHOUT.rmseall);
-            
-            nullDistributionP = nan(nboots,1);
-            nullDistributionD = nan(nboots,1);
-            
-            % Repeating the bootstrap method for several times
-            for inm = 1:nmontecarlo
-                fprintf('Bootstrap repetition %i/%i the Tract ...\n',inm,nmontecarlo)
-                parfor ibt = 1:nboots
-                    nullDistributionP(ibt,inm) = mean(randsample(WITH.rmseall, sizeWith,true));
-                    nullDistributionD(ibt,inm) = mean(randsample(WITHOUT.rmseall, sizeWithout,true));
-                end
-            end
-            
-            % Compute the Strength of the connection Evidence (S). S is defined as the
-            % d'-prime between distribution of RMSE in with and without VOF model.
-            
-            % S in each montecarlo simulation
-            dprime_all_voxels_dorsal{connum} = diff([mean(nullDistributionP,1);mean(nullDistributionD,1)]) ...
-                ./sqrt(sum([std(nullDistributionP,[],1);std(nullDistributionD,[],1)].^2,1));
-            
-            % S averaged across several montecarlo simulations
-            dprime_all_mean_dorsal{connum} = mean(dprime_all_voxels_dorsal{connum});
         else
-            % If no fibers projected to gray matter ROI, S becomes 0 (by
-            % definition)
-            dprime_all_mean_dorsal{connum} = 0;
-            EmpiricalDiff_d{connum} = 0;
+            ventralfiberend(kk,1,connum) = fibercoordinate(1,1);
+            ventralfiberend(kk,2,connum) = fibercoordinate(2,1);
+            ventralfiberend(kk,3,connum) = fibercoordinate(3,1);
+            dorsalfiberend(kk,1,connum) = fibercoordinate(1,fiberlength(2));
+            dorsalfiberend(kk,2,connum) = fibercoordinate(2,fiberlength(2));
+            dorsalfiberend(kk,3,connum) = fibercoordinate(3,fiberlength(2));
+            
         end
-        %% Run the ventral test if the number of dorsal VOF projection fibers were non-zero if ventralsize(2)>0
-        if ventralsize(2)>0
-            keepFascicles5v = zeros(size(keepFascicles4));
-            for ik = 1:length(ventralfiber)
-                keepFascicles5v(fascicleidxtotal(ventralfiber(ik))) = 1;              
-            end
-            % Hypothesis Testing
-            fprintf('Testing the ventral VOF projection, connectome number %i...\n',connum)
-            [feWithoutFas, feWithFas, ~] = feTestFascicle(fe,logical(keepFascicles5v),0);
+        clear fibercoordinate fiberlength
+    end
+    
+    % Load target ROI
+    load(fullfile(targetROIdir,targetROIfile));
+    roicoords = transpose(roi.coords);
+    dorsalendcoords = transpose(dorsalfiberend(:,:,connum));
+    ventralendcoords = transpose(ventralfiberend(:,:,connum));
+    roicoordsize = size(roicoords);
+    
+    % Compute squared distance between ROI and each fascicle endpoints
+    for kp = 1:voffiberlength(connum)
+        [indices_d(kp), bestSqDis_d(kp)] = nearpoints(dorsalendcoords(:,kp), roicoords);
+        [indices_v(kp), bestSqDis_v(kp)] = nearpoints( ventralendcoords(:,kp),roicoords);
+    end
+    
+    
+    % Select fibers within the threshold, then create keepFascicles
+    % structure
+    dorsalfiber = find(bestSqDis_d <threshold);
+    ventralfiber = find(bestSqDis_v <threshold);
+    fascicleidxtotal = find(keepFascicles4);
+    dorsalsize = size(dorsalfiber);
+    ventralsize = size(ventralfiber);
+    
+    fprintf('Testing the dorsal tract projection ...\n')
+    if dorsalsize(2)>0
+        keepFascicles5d = zeros(size(keepFascicles4));
+        for ik = 1:length(dorsalfiber)
+            keepFascicles5d(fascicleidxtotal(dorsalfiber(ik))) = 1;
             
-            % Compute the RMSE and Rrmse
-            WITH.r2       = median(feGetRep(feWithFas,   'vox  r2'));
-            WITH.rmse     = median(feGetRep(feWithFas,   'vox  rmse'));
-            WITH.rrmse    = median(feGetRep(feWithFas,   'vox  rmse ratio'));
-            WITH.rmseall  = (feGetRep(feWithFas,   'vox  rmse'));
-            
-            WITHOUT.r2       = median(feGetRep(feWithoutFas,'vox  r2'));
-            WITHOUT.rmse     = median(feGetRep(feWithoutFas,'vox  rmse'));
-            WITHOUT.rrmse    = median(feGetRep(feWithoutFas,'vox  rmse ratio'));
-            WITHOUT.rmseall  = (feGetRep(feWithoutFas,'vox  rmse'));
-            
-            % Empirical difference of RMSE between with and without VOF model
-            EmpiricalDiff_v{connum} = WITHOUT.rmse - WITH.rmse;
-            
-            sizeWith    = length(WITH.rmseall);
-            sizeWithout = length(WITHOUT.rmseall);
-            
-            nullDistributionP = nan(nboots,1);
-            nullDistributionD = nan(nboots,1);
-            
-            % Repeating the bootstrap method for several times
-            for inm = 1:nmontecarlo
-                fprintf('Bootstrap repetition %i/%i the Tract ...\n',inm,nmontecarlo)
-                parfor ibt = 1:nboots
-                    nullDistributionP(ibt,inm) = mean(randsample(WITH.rmseall, sizeWith,true));
-                    nullDistributionD(ibt,inm) = mean(randsample(WITHOUT.rmseall, sizeWithout,true));
-                end
-            end
-            
-            % Compute the Strength of the connection Evidence (S). S is defined as the
-            % d'-prime between distribution of RMSE in with and without VOF model.
-            
-            % S in each montecarlo simulation
-            dprime_all_voxels_ventral{connum} = diff([mean(nullDistributionP,1);mean(nullDistributionD,1)]) ...
-                ./sqrt(sum([std(nullDistributionP,[],1);std(nullDistributionD,[],1)].^2,1));
-            
-            % S averaged across several montecarlo simulations
-            dprime_all_mean_ventral{connum} = mean(dprime_all_voxels_ventral{connum});
-        else
-            % If no fibers projected to gray matter ROI, S becomes 0 (by
-            % definition)
-            dprime_all_mean_ventral{connum} = 0;
-            EmpiricalDiff_v{connum} = 0;
         end
-        
-        clear dorsalfiber ventralfiber keepFascicles5d keepFascicles5v fascicleidxtotal dorsalsize ventralsize dorsalendcoords ventralendcoords bestSqDis_d bestSqDis_v dorsalfiberend ventralfiberend keepFascicles4 keepFascicle3 keepFascicles2 keepFascicles
+        [se_d{connum}] = feVirtualLesion(fe, logical(keepFascicles5d));
+    else 
+        se_d{connum} = 0;
+    end
+    
+    fprintf('Testing the ventral tract projection ...\n')
+    
+    if ventralsize(2)>0
+        keepFascicles5v = zeros(size(keepFascicles4));
+        for ik = 1:length(ventralfiber)
+            keepFascicles5v(fascicleidxtotal(ventralfiber(ik))) = 1;
+            
+        end
+        [se_v{connum}] = feVirtualLesion(fe, logical(keepFascicles5v));
+    else 
+        se_v{connum} = 0;
+
+    end
+    
+    clear keepFascicles4 keepFascicles3 keepFascicles2 keepFascicles keepFascicles5v keepFascicles5d fascicleidxtotal ventralfiber dorsalfiber bestSqDis_d bestSqDis_v indices_d indices_v    
     end
     % save files
-    save(savematfile,'dprime_all_mean_dorsal','dprime_all_mean_ventral','EmpiricalDiff_d','EmpiricalDiff_v');
+    save(savematfile,'se_d','se_v');
     clear roicoords roicoordsize
 end

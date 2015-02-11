@@ -85,57 +85,11 @@ for connum = 1:sizecon(2)
         
     % Start to test the tract
     fprintf('Testing the Tract ...\n')
-    [feWithoutFas, feWithFas, ~] = feTestFascicle(fe,keepFascicles4,0);
-    
-    % Compute the RMSE and Rrmse
-    WITH.r2       = median(feGetRep(feWithFas,   'vox  r2'));
-    WITH.rmse     = median(feGetRep(feWithFas,   'vox  rmse'));
-    WITH.rrmse    = median(feGetRep(feWithFas,   'vox  rmse ratio'));
-    WITH.rmseall  = (feGetRep(feWithFas,   'vox  rmse'));
-    
-    WITHOUT.r2       = median(feGetRep(feWithoutFas,'vox  r2'));
-    WITHOUT.rmse     = median(feGetRep(feWithoutFas,'vox  rmse'));
-    WITHOUT.rrmse    = median(feGetRep(feWithoutFas,'vox  rmse ratio'));
-    WITHOUT.rmseall  = (feGetRep(feWithoutFas,'vox  rmse'));
-    
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    
-    % Empirical difference of RMSE between with and without VOF model
-    EmpiricalDiff{connum} = WITHOUT.rmse - WITH.rmse;
-    
-    % Make a statisitcal test. To show that the Probabilistic model is better
-    % than the deterministic model when using all the voxels.
-    sizeWith    = length(WITH.rmseall);
-    sizeWithout = length(WITHOUT.rmseall);
-    
-    nullDistributionP = nan(nboots,1);
-    nullDistributionD = nan(nboots,1);
-    
-    % Bootstrap computation (repeteated several times) to compute
-    % distribution of RMSE in with and without VOF model
-    for inm = 1:nmontecarlo
-        fprintf('Bootstrap repetition %i/%i the Tract ...\n',inm,nmontecarlo)
-        parfor ibt = 1:nboots
-            nullDistributionP(ibt,inm) = mean(randsample(WITH.rmseall, sizeWith,true));
-            nullDistributionD(ibt,inm) = mean(randsample(WITHOUT.rmseall, sizeWithout,true));
-        end
-        
-    end
-    
-    % Compute the Strength of the connection Evidence (S). S is defined as the
-    % d'-prime between distribution of RMSE in with and without VOF model.
-    
-    % S in each montecarlo simulation
-    dprime_all_voxels{connum} = diff([mean(nullDistributionP,1);mean(nullDistributionD,1)]) ...
-        ./sqrt(sum([std(nullDistributionP,[],1);std(nullDistributionD,[],1)].^2,1));
-    
-    % S averaged across several montecarlo simulations
-    dprime_all_mean{connum} = mean(dprime_all_voxels{connum});
-    fprintf('The Strength of connection evidence is %i ...\n',dprime_all_mean{connum});
+    [se{connum}] = feVirtualLesion(fe, keepFascicles4);
     
     
 end
 % save file
-save(savematfile, 'dprime_all_mean','dprime_all_voxels','EmpiricalDiff');
+save(savematfile, 'se');
 
 end
