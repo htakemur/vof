@@ -4,7 +4,7 @@ This repository contains the source code to replicate key results from the follo
 
    A major human white-matter pathway between dorsal and ventral visual cortex.
    by Takemura, H., Rokem, A., Winawer, J., Yeatman, J. D., Wandell, B. A. & Pestilli, F.
-   Under Review.
+   Cerebral Cortex, 26(5), 2205-2214. 
 
 This repository is still under prepration.
  
@@ -19,10 +19,10 @@ The code also requires three toolboxes you can download freely:
  1) vistasoft (Wandell Lab., Stanford)
    https://github.com/vistalab/vistasoft
 
- 2) LIFE (Franco Pestilli, Stanford)
+ 2) LIFE (Franco Pestilli, Indiana University)
    https://github.com/francopestilli/life
 
- 3) MBA (Franco Pestilli, Stanford)
+ 3) MBA (Franco Pestilli, Indiana University)
    https://github.com/francopestilli/mba
 
  4) AFQ (Jason D. Yeatman, Stanford)
