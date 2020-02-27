@@ -5,8 +5,6 @@ This repository contains the source code to replicate key results from the follo
    A major human white-matter pathway between dorsal and ventral visual cortex.
    by Takemura, H., Rokem, A., Winawer, J., Yeatman, J. D., Wandell, B. A. & Pestilli, F.
    Cerebral Cortex, 26(5), 2205-2214. 
-
-This repository is still under prepration.
  
 Required operating enviroment
  
