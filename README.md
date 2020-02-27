@@ -1,4 +1,4 @@
-A major human white-matter pathway between dorsal and ventral visual cortex
+#A major human white-matter pathway between dorsal and ventral visual cortex
 
 This repository contains the source code to replicate key results from the following paper paper:
 
